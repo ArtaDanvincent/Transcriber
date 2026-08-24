@@ -8,8 +8,27 @@ export function useAuth() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
+  const autoAuth = useCallback(async () => {
+    const email = "user@transcriber.local";
+    const password = "transcriber";
+    const name = "User";
+    try {
+      const data = (await api.post("/api/auth/login", { email, password })) as TokenResponse;
+      localStorage.setItem("access_token", data.access_token);
+      localStorage.setItem("refresh_token", data.refresh_token);
+    } catch {
+      const data = (await api.post("/api/auth/register", { email, password, name })) as TokenResponse;
+      localStorage.setItem("access_token", data.access_token);
+      localStorage.setItem("refresh_token", data.refresh_token);
+    }
+  }, []);
+
   const fetchUser = useCallback(async () => {
-    const token = localStorage.getItem("access_token");
+    let token = localStorage.getItem("access_token");
+    if (!token) {
+      await autoAuth();
+      token = localStorage.getItem("access_token");
+    }
     if (!token) {
       setLoading(false);
       return;
@@ -18,11 +37,19 @@ export function useAuth() {
       const data = await api.get("/api/auth/me");
       setUser(data as User);
     } catch {
-      setUser(null);
+      localStorage.removeItem("access_token");
+      localStorage.removeItem("refresh_token");
+      await autoAuth();
+      try {
+        const data = await api.get("/api/auth/me");
+        setUser(data as User);
+      } catch {
+        setUser(null);
+      }
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [autoAuth]);
 
   useEffect(() => {
     fetchUser();
