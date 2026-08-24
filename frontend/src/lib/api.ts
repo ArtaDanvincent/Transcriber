@@ -13,8 +13,8 @@ class ApiClient {
     return headers;
   }
 
-  private async handleResponse(response: Response) {
-    if (response.status === 401) {
+  private async handleResponse(response: Response, retry?: () => Promise<Response>): Promise<unknown> {
+    if (response.status === 401 && retry) {
       const refreshed = await this.tryRefresh();
       if (!refreshed) {
         localStorage.removeItem("access_token");
@@ -22,7 +22,8 @@ class ApiClient {
         window.location.href = "/login";
         throw new Error("Unauthorized");
       }
-      return null;
+      const retryResponse = await retry();
+      return this.handleResponse(retryResponse);
     }
     if (!response.ok) {
       const body = await response.json().catch(() => ({}));
@@ -52,55 +53,63 @@ class ApiClient {
   }
 
   async get(path: string) {
-    const response = await fetch(`${API_URL}${path}`, { headers: this.getHeaders() });
-    return this.handleResponse(response);
+    const doFetch = () => fetch(`${API_URL}${path}`, { headers: this.getHeaders() });
+    const response = await doFetch();
+    return this.handleResponse(response, doFetch);
   }
 
   async post(path: string, body?: unknown) {
-    const response = await fetch(`${API_URL}${path}`, {
+    const doFetch = () => fetch(`${API_URL}${path}`, {
       method: "POST",
       headers: this.getHeaders(),
       body: body ? JSON.stringify(body) : undefined,
     });
-    return this.handleResponse(response);
+    const response = await doFetch();
+    return this.handleResponse(response, doFetch);
   }
 
   async patch(path: string, body: unknown) {
-    const response = await fetch(`${API_URL}${path}`, {
+    const doFetch = () => fetch(`${API_URL}${path}`, {
       method: "PATCH",
       headers: this.getHeaders(),
       body: JSON.stringify(body),
     });
-    return this.handleResponse(response);
+    const response = await doFetch();
+    return this.handleResponse(response, doFetch);
   }
 
   async put(path: string, body: unknown) {
-    const response = await fetch(`${API_URL}${path}`, {
+    const doFetch = () => fetch(`${API_URL}${path}`, {
       method: "PUT",
       headers: this.getHeaders(),
       body: JSON.stringify(body),
     });
-    return this.handleResponse(response);
+    const response = await doFetch();
+    return this.handleResponse(response, doFetch);
   }
 
   async delete(path: string) {
-    const response = await fetch(`${API_URL}${path}`, {
+    const doFetch = () => fetch(`${API_URL}${path}`, {
       method: "DELETE",
       headers: this.getHeaders(),
     });
-    return this.handleResponse(response);
+    const response = await doFetch();
+    return this.handleResponse(response, doFetch);
   }
 
   async upload(path: string, formData: FormData) {
-    const headers: Record<string, string> = {};
-    const token = this.getToken();
-    if (token) headers["Authorization"] = `Bearer ${token}`;
-    const response = await fetch(`${API_URL}${path}`, {
-      method: "POST",
-      headers,
-      body: formData,
-    });
-    return this.handleResponse(response);
+    const doFetch = () => {
+      const headers: Record<string, string> = {};
+      const token = this.getToken();
+      if (token) headers["Authorization"] = `Bearer ${token}`;
+      return fetch(`${API_URL}${path}`, {
+        method: "POST",
+        headers,
+        body: formData,
+      });
+    };
+    const response = await doFetch();
+    return this.handleResponse(response, doFetch);
   }
 
   getMediaUrl(jobId: string): string {
