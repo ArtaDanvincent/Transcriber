@@ -34,6 +34,6 @@ services:
     startCommand: npm run start
     envVars:
       - key: NEXT_PUBLIC_API_URL
-        value: https://transcriber-backend.onrender.com
+        value: https://transcriber-backend-30mb.onrender.com
       - key: NODE_VERSION
         value: 20.11.0
