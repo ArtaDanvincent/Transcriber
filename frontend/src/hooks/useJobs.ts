@@ -26,6 +26,13 @@ export function useJobs() {
     refresh();
   }, [refresh]);
 
+  useEffect(() => {
+    const hasTranscribing = jobs.some((j) => j.status === "transcribing");
+    if (!hasTranscribing) return;
+    const interval = setInterval(refresh, 5000);
+    return () => clearInterval(interval);
+  }, [jobs, refresh]);
+
   const deleteJob = async (id: string) => {
     await api.delete(`/api/jobs/${id}`);
     await refresh();

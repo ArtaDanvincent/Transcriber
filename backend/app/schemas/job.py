@@ -24,6 +24,7 @@ class JobResponse(BaseModel):
     media_type: str
     media_duration: Optional[int]
     media_original_name: str
+    error_message: Optional[str] = None
     created_at: datetime
     updated_at: datetime
 

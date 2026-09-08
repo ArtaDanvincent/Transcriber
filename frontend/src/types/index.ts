@@ -9,10 +9,11 @@ export interface Job {
   id: string;
   title: string;
   description: string | null;
-  status: "draft" | "completed";
+  status: "draft" | "completed" | "transcribing" | "failed";
   media_type: "audio" | "video";
   media_duration: number | null;
   media_original_name: string;
+  error_message: string | null;
   created_at: string;
   updated_at: string;
 }

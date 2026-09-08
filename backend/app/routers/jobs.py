@@ -1,6 +1,6 @@
 import os
 
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Query, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, UploadFile, File, Form, Query, status
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
@@ -11,6 +11,7 @@ from app.models.user import User
 from app.schemas.job import JobResponse, JobListResponse, JobUpdate
 from app.services.media import validate_media_file, get_media_type, save_upload, delete_job_files
 from app.services.auth import decode_token
+from app.services.transcription import transcribe_job
 
 router = APIRouter(prefix="/api/jobs", tags=["jobs"])
 
@@ -30,6 +31,7 @@ def list_jobs(
 
 @router.post("", response_model=JobResponse, status_code=status.HTTP_201_CREATED)
 def create_job(
+    background_tasks: BackgroundTasks,
     title: str = Form(...),
     description: str = Form(None),
     file: UploadFile = File(...),
@@ -44,6 +46,7 @@ def create_job(
         user_id=current_user.id,
         title=title,
         description=description,
+        status="transcribing",
         media_type=media_type,
         media_original_name=file.filename,
         media_file_path="",
@@ -55,6 +58,8 @@ def create_job(
     job.media_file_path = file_path
     db.commit()
     db.refresh(job)
+
+    background_tasks.add_task(transcribe_job, str(job.id))
     return job
 
 
@@ -85,11 +90,31 @@ def update_job(
     if data.description is not None:
         job.description = data.description
     if data.status is not None:
-        if data.status not in ("draft", "completed"):
-            raise HTTPException(status_code=400, detail="Status must be 'draft' or 'completed'")
+        if data.status not in ("draft", "completed", "transcribing", "failed"):
+            raise HTTPException(status_code=400, detail="Invalid status")
         job.status = data.status
     db.commit()
     db.refresh(job)
+    return job
+
+
+@router.post("/{job_id}/retry", response_model=JobResponse)
+def retry_transcription(
+    job_id: str,
+    background_tasks: BackgroundTasks,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    job = db.query(Job).filter(Job.id == job_id, Job.user_id == current_user.id).first()
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    if job.status not in ("failed", "draft"):
+        raise HTTPException(status_code=400, detail="Job is not in a retryable state")
+    job.status = "transcribing"
+    job.error_message = None
+    db.commit()
+    db.refresh(job)
+    background_tasks.add_task(transcribe_job, str(job.id))
     return job
 
 

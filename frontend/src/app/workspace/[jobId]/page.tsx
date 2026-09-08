@@ -45,14 +45,37 @@ export default function WorkspacePage() {
         const data = (await api.get(`/api/jobs/${jobId}`)) as Job;
         setJob(data);
         setTitle(data.title);
+        if (data.status !== "transcribing") {
+          loadSegments();
+          loadSpeakers();
+        }
       } catch {
         router.push("/dashboard");
       }
     };
     loadJob();
-    loadSegments();
-    loadSpeakers();
   }, [jobId, loadSegments, loadSpeakers, router]);
+
+  useEffect(() => {
+    if (!job || job.status !== "transcribing") return;
+    const interval = setInterval(async () => {
+      try {
+        const data = (await api.get(`/api/jobs/${jobId}`)) as Job;
+        setJob(data);
+        setTitle(data.title);
+        if (data.status !== "transcribing") {
+          clearInterval(interval);
+          if (data.status === "draft" || data.status === "completed") {
+            loadSegments();
+            loadSpeakers();
+          }
+        }
+      } catch {
+        clearInterval(interval);
+      }
+    }, 3000);
+    return () => clearInterval(interval);
+  }, [job?.status, jobId, loadSegments, loadSpeakers]);
 
   const handleTitleBlur = async () => {
     if (job && title !== job.title) {
@@ -133,6 +156,15 @@ export default function WorkspacePage() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [currentTime, addSegment, forceSave]);
 
+  const handleRetry = async () => {
+    try {
+      const data = (await api.post(`/api/jobs/${jobId}/retry`)) as Job;
+      setJob(data);
+    } catch {
+      // retry failed
+    }
+  };
+
   if (!job) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -187,18 +219,53 @@ export default function WorkspacePage() {
 
           {/* Right panel: Transcript */}
           <div className="w-1/2 flex flex-col">
-            <TranscriptEditor
-              segments={segments}
-              speakers={speakers}
-              currentTime={currentTime}
-              onUpdateSegment={updateSegment}
-              onDeleteSegment={removeSegment}
-              onAddSegment={addSegment}
-              onTimestampClick={handleTimestampClick}
-              wordCount={wordCount}
-              lastSaved={lastSaved}
-              saving={saving}
-            />
+            {job.status === "transcribing" ? (
+              <div className="flex-1 flex items-center justify-center">
+                <div className="text-center">
+                  <svg className="animate-spin w-10 h-10 mx-auto mb-4 text-blue-500" viewBox="0 0 24 24" fill="none">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>
+                  <p className="text-lg font-semibold text-gray-700">Transcribing audio...</p>
+                  <p className="text-sm text-gray-500 mt-1">This may take a minute depending on the file length</p>
+                </div>
+              </div>
+            ) : job.status === "failed" ? (
+              <div className="flex-1 flex items-center justify-center">
+                <div className="text-center max-w-sm">
+                  <div className="w-12 h-12 mx-auto mb-4 rounded-full bg-red-100 flex items-center justify-center">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-red-500" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="12" cy="12" r="10" />
+                      <line x1="15" y1="9" x2="9" y2="15" />
+                      <line x1="9" y1="9" x2="15" y2="15" />
+                    </svg>
+                  </div>
+                  <p className="text-lg font-semibold text-gray-700">Transcription failed</p>
+                  {job.error_message && (
+                    <p className="text-sm text-red-500 mt-1">{job.error_message}</p>
+                  )}
+                  <button
+                    onClick={handleRetry}
+                    className="mt-4 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
+                  >
+                    Retry Transcription
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <TranscriptEditor
+                segments={segments}
+                speakers={speakers}
+                currentTime={currentTime}
+                onUpdateSegment={updateSegment}
+                onDeleteSegment={removeSegment}
+                onAddSegment={addSegment}
+                onTimestampClick={handleTimestampClick}
+                wordCount={wordCount}
+                lastSaved={lastSaved}
+                saving={saving}
+              />
+            )}
           </div>
         </div>
       </div>

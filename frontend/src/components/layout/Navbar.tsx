@@ -1,10 +1,6 @@
 "use client";
 
-import { useAuth } from "@/hooks/useAuth";
-
 export function Navbar() {
-  const { user } = useAuth();
-
   return (
     <nav className="glass border-b border-white/5 px-6 py-4 flex items-center justify-between sticky top-0 z-40">
       <div className="flex items-center gap-3">
@@ -18,12 +14,6 @@ export function Navbar() {
         <h1 className="text-lg font-bold bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">
           Transcriber
         </h1>
-      </div>
-      <div className="flex items-center gap-3">
-        <div className="flex items-center gap-2 px-3 py-1.5 rounded-full glass-light">
-          <div className="w-2 h-2 rounded-full bg-emerald-400 shadow-sm shadow-emerald-400/50" />
-          <span className="text-xs text-slate-300 font-medium">{user?.name}</span>
-        </div>
       </div>
     </nav>
   );

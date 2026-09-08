@@ -13,6 +13,7 @@ export function JobCard({ job, onDelete }: JobCardProps) {
   const router = useRouter();
 
   const handleClick = () => {
+    if (job.status === "transcribing") return;
     router.push(`/workspace/${job.id}`);
   };
 
@@ -67,9 +68,21 @@ export function JobCard({ job, onDelete }: JobCardProps) {
           <span className={`text-[10px] uppercase tracking-wider font-bold px-2.5 py-1 rounded-full ${
             job.status === "completed"
               ? "bg-emerald-500/10 text-emerald-400 ring-1 ring-emerald-500/20"
+              : job.status === "transcribing"
+              ? "bg-blue-500/10 text-blue-400 ring-1 ring-blue-500/20"
+              : job.status === "failed"
+              ? "bg-red-500/10 text-red-400 ring-1 ring-red-500/20"
               : "bg-amber-500/10 text-amber-400 ring-1 ring-amber-500/20"
           }`}>
-            {job.status === "completed" ? "Done" : "Draft"}
+            {job.status === "completed" ? "Done" : job.status === "transcribing" ? (
+              <span className="flex items-center gap-1">
+                <svg className="animate-spin w-3 h-3" viewBox="0 0 24 24" fill="none">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                </svg>
+                Transcribing
+              </span>
+            ) : job.status === "failed" ? "Failed" : "Draft"}
           </span>
           <button
             onClick={handleDelete}

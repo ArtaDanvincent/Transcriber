@@ -20,6 +20,7 @@ class Job(Base):
     media_type: Mapped[str] = mapped_column(String(10), nullable=False)
     media_duration: Mapped[int | None] = mapped_column(Integer, nullable=True)
     media_original_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
