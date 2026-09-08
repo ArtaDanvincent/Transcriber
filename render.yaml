@@ -8,10 +8,9 @@ services:
   - type: web
     name: transcriber-backend
     plan: free
-    runtime: python
+    runtime: docker
     rootDir: backend
-    buildCommand: pip install -r requirements.txt && python -m alembic upgrade head
-    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    dockerfilePath: ./Dockerfile
     envVars:
       - key: DATABASE_URL
         fromDatabase:
@@ -25,8 +24,6 @@ services:
         value: tiny
       - key: FRONTEND_URL
         value: https://transcriber-frontend.onrender.com
-      - key: PYTHON_VERSION
-        value: 3.12.0
 
   - type: web
     name: transcriber-frontend
