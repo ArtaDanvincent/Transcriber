@@ -1,0 +1,42 @@
+databases:
+  - name: transcriber-db
+    plan: free
+    databaseName: transcriber
+    user: transcriber
+
+services:
+  - type: web
+    name: transcriber-backend
+    plan: free
+    runtime: python
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt && apt-get update && apt-get install -y ffmpeg
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: transcriber-db
+          property: connectionURI
+      - key: STORAGE_PATH
+        value: ./storage
+      - key: JWT_SECRET
+        generateValue: true
+      - key: WHISPER_MODEL
+        value: tiny
+      - key: FRONTEND_URL
+        value: https://transcriber-frontend.onrender.com
+      - key: PYTHON_VERSION
+        value: 3.12.0
+
+  - type: web
+    name: transcriber-frontend
+    plan: free
+    runtime: node
+    rootDir: frontend
+    buildCommand: npm install && npm run build
+    startCommand: npm run start
+    envVars:
+      - key: NEXT_PUBLIC_API_URL
+        value: https://transcriber-backend.onrender.com
+      - key: NODE_VERSION
+        value: 20.11.0
